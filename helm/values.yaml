@@ -21,16 +21,28 @@ image:
 # Secrets used to config the agent
 secrets:
   K2_MAILBOX_ID: ""
-  K2_MANAGER_URL: "https://cloud-dev.k2view.com/api/mailbox"
+  K2_MANAGER_URL: "https://cloud.k2view.com/api/mailbox"
   kubeInterface: "https://kubernetes.default.svc"
-  # If serviceAccount.create is true this env will be ignored
-  kubeToken: ""
+  CLOUD: "" # GCP|AWS
+  REGION: ""
+  # AWS parameters
+  SPACE_SA_ARN: "" # For AWS role for Fabric spaces
+  AWS_KEYSPACE_USER: ""
+  AWS_KEYSPACE_PASSWORD: ""
+  AWS_ACCESS_KEY_ID: ""
+  AWS_SECRET_ACCESS_KEY: ""
+  # GCP parameters
+  PROJECT: ""
+  GCP_CONF_FILE: ""
 
-serviceAccount:
-  # will create service account with cluster role and secret with tocken of this SA
-  create: true
-  # The name of the service account to use.
-  name: "k2view-agent"
+secrets_from_file:
+  TLS_KEY_PATH: ""
+  TLS_CERT_PATH: ""
+
+externalSecrets:
+  #- secretName: "keyspace_secret"
+  #  key: "AWS_KEYSPACE_USER"
+  #  varName: "AWS_KEYSPACE_USER"
 
 resources:
   requests:
@@ -40,31 +52,45 @@ resources:
     memory: 256Mi
     cpu: '0.4'
 
-# Role for SA
-role:
-  name: k2view-agent
-  rules:
-    - apiGroups: [""]
-      resources: ["namespaces"]
-      verbs: ["create", "delete", "get"]
-    - apiGroups: ["apps"]
-      resources: ["deployments"]
-      verbs: ["create", "delete", "list", "get", "patch"]
-    - apiGroups: ["batch"]
-      resources: ["jobs", "jobs/status"]
-      verbs: ["create", "delete", "get", "list"]
-    - apiGroups: ["networking.k8s.io"]
-      resources: ["ingresses", "networkpolicies"]
-      verbs: ["create", "delete"]
-    - apiGroups: [""]
-      resources: ["pods"]
-      verbs: ["delete", "list"]
-    - apiGroups: [""]
-      resources: ["configmaps", "secrets"]
-      verbs: ["create", "delete", "list", "patch"]
-    - apiGroups: [""]
-      resources: ["services", "persistentvolumeclaims", "networkpolicies"]
-      verbs: ["create", "delete"]
-    - apiGroups: ["monitoring.googleapis.com"]
-      resources: ["podmonitorings"]
-      verbs: ["create", "delete"]
+serviceAccount:
+  # will create service account with cluster role and secret with tocken of this SA
+  create: true
+  # Attach SA to agent pod
+  attach: false
+  # The name of the service account to use.
+  name: "k2view-agent"
+  provider: ""   #aws|gcp
+  arn: ""        # For AWS role
+  gcp_service_account_name: "" # For GCP sa
+  project_id: "" # For GCP SA
+
+  # Role for SA
+  role:
+    rules:
+      - apiGroups: [""]
+        resources: ["namespaces"]
+        verbs: ["create", "delete", "get"]
+      - apiGroups: ["apps"]
+        resources: ["deployments", "statefulsets"]
+        verbs: ["create", "delete", "get", "list", "patch"]
+      - apiGroups: ["batch"]
+        resources: ["jobs", "jobs/status"]
+        verbs: ["create", "delete", "get", "list"]
+      - apiGroups: ["networking.k8s.io"]
+        resources: ["ingresses", "networkpolicies"]
+        verbs: ["create", "delete", "get"]
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["delete", "list"]
+      - apiGroups: [""]
+        resources: ["configmaps", "secrets", "serviceaccounts"]
+        verbs: ["create", "delete", "get", "list", "patch"]
+      - apiGroups: [""]
+        resources: ["services", "persistentvolumeclaims"]
+        verbs: ["create", "delete", "get", "list"]
+      - apiGroups: ["monitoring.coreos.com"]
+        resources: ["podmonitors"]
+        verbs: ["create", "delete"]
+      - apiGroups: ["autoscaling"]
+        resources: ["horizontalpodautoscalers"]
+        verbs: ["create", "delete", "get", "list", "patch"]

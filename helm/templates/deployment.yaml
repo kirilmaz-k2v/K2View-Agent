@@ -19,39 +19,46 @@ spec:
       imagePullSecrets:
         -name: {{ .Values.image.dockerRegistrySecret }}
       {{- end }}
+      {{- if .Values.serviceAccount.attach }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: {{ .Values.image.url }}
           imagePullPolicy: IfNotPresent
           env:
-          - name: K2_MAILBOX_ID
-            valueFrom:
-              secretKeyRef:
-                name: agent-config-secret
-                key: K2_MAILBOX_ID
-          - name: K2_MANAGER_URL
-            valueFrom:
-              secretKeyRef:
-                name: agent-config-secret
-                key: K2_MANAGER_URL
-          - name: kubeInterface
-            valueFrom:
-              secretKeyRef:
-                name: agent-config-secret
-                key: kubeInterface
-          {{- if .Values.serviceAccount.create }}
-          - name: kubeToken
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.serviceAccount.name }}
-                key: token
-          {{- else }}
-          - name: kubeToken
-            valueFrom:
-              secretKeyRef:
-                name: agent-config-secret
-                key: kubeToken
-          {{- end }}
+            {{- range $key, $value :=  .Values.secrets }}
+            {{- if not (empty $value) }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: agent-config-secrets
+                  key: {{ $key }}
+            {{- end }}
+            {{- end }}
+            {{- range $key, $value :=  .Values.secrets_from_file }}
+            {{- if not (empty $value) }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: agent-config-secrets
+                  key: {{ $key }}
+            {{- end }}
+            {{- end }}
+            {{- range .Values.externalSecrets }}
+            - name: {{ .varName }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .key }}
+            {{- end }}
+            {{- if .Values.serviceAccount.create }}
+            - name: kubeToken
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.namespace.name }}-secret
+                  key: token
+            {{- end }}
           livenessProbe:
             exec:
               command:
